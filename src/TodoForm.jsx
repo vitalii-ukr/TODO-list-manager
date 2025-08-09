@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 
 function TodoForm({ onAddTodo }) {
+  const todoTitleInput = useRef(null);
+
   function handleAddTodo(event) {
     event.preventDefault();
     const title = event.target.title.value;
@@ -8,8 +10,6 @@ function TodoForm({ onAddTodo }) {
     onAddTodo(title);
     todoTitleInput.current.focus();
   }
-
-  const todoTitleInput = useRef('');
 
   return (
     <form onSubmit={handleAddTodo}>
