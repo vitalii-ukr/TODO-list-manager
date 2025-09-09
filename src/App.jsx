@@ -56,12 +56,16 @@ function App() {
       }
 
       const { records } = await resp.json();
-      const savedTodo = records.map((r) => {
+      const savedTodos = records.map((r) => {
         return {
           id: r.id,
           ...r.fields,
         };
       });
+      if (savedTodos.length > 1) {
+        throw new Error('DB return more than one saved entities!');
+      }
+      const savedTodo = savedTodos[0];
       if (!savedTodo.isCompleted) {
         savedTodo.isCompleted = false;
       }
