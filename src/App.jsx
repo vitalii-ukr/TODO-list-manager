@@ -17,15 +17,10 @@ function App() {
     return `https://api.airtable.com/v0/${import.meta.env.VITE_BASE_ID}/${import.meta.env.VITE_TABLE_NAME}`;
   }
 
-  function completedTodo(id) {
-    const updatedTodos = todoList.map((todo) => {
-      if (todo.id === id) {
-        return { ...todo, isCompleted: true };
-      }
-      return todo;
-    });
-
-    setTodoList(updatedTodos);
+  async function completedTodo(id) {
+    var editedTodo = todoList.find((t) => t.id == id);
+    editedTodo.isCompleted = true;
+    await updateTodo(editedTodo);
   }
 
   const addTodo = async (newTodo) => {
