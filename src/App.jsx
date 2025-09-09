@@ -79,16 +79,66 @@ function App() {
     }
   };
 
-  function updateTodo(editedTodo) {
-    const updatedTodos = todoList.map((todo) => {
-      if (todo.id === editedTodo.id) {
-        return editedTodo;
-      }
-      return todo;
-    });
+  const updateTodo = async (editedTodo) => {
+    const originalTodo = todoList.find((todo) => todo.id === editedTodo.id);
+    const payload = {
+      records: [
+        {
+          id: editedTodo.id,
+          fields: {
+            title: editedTodo.title,
+            isCompleted: editedTodo.isCompleted,
+          },
+        },
+      ],
+    };
 
-    setTodoList(updatedTodos);
-  }
+    const options = {
+      method: 'PATCH',
+      headers: {
+        Authorization: getTokenHeader(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    };
+
+    try {
+      setIsSaving(true);
+      const resp = await fetch(getDbUrl(), options);
+      if (!resp.ok) {
+        throw new Error(resp.status);
+      }
+
+      const { records } = await resp.json();
+      const renamedTodos = records.map((r) => {
+        return {
+          id: r.id,
+          ...r.fields,
+        };
+      });
+      if (renamedTodos.length > 1) {
+        throw new Error('DB return more than one saved entities!');
+      }
+      const renamedTodo = renamedTodos[0];
+      if (!renamedTodo.isCompleted) {
+        renamedTodo.isCompleted = false;
+      }
+
+      setTodoList([
+        renamedTodo,
+        ...todoList.filter((t) => t.id != originalTodo.id),
+      ]);
+    } catch (error) {
+      console.log(error.message);
+      setErrorMessage(`${error.message}. Reverting todo...`);
+      setTodoList([
+        originalTodo,
+        ...todoList.filter((t) => t.id != originalTodo.id),
+      ]);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   useEffect(() => {
     const fetchTodos = async () => {
@@ -148,6 +198,13 @@ function App() {
             <div>
               <hr />
               <p>{errorMessage}</p>
+              <button
+                onClick={() => {
+                  setErrorMessage('');
+                }}
+              >
+                Dismiss Error Message
+              </button>
             </div>
           )}
         </>
