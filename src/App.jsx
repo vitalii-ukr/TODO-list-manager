@@ -9,21 +9,22 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  function getTokenHeader() {
-    return `Bearer ${import.meta.env.VITE_PAT}`;
-  }
-
-  function getDbUrl() {
-    return `https://api.airtable.com/v0/${import.meta.env.VITE_BASE_ID}/${import.meta.env.VITE_TABLE_NAME}`;
-  }
-
   async function completedTodo(id) {
     var editedTodo = todoList.find((t) => t.id == id);
     editedTodo.isCompleted = true;
     await updateTodo(editedTodo);
   }
 
-  const addTodo = async (newTodo) => {
+  async function dbApiRequest(options) {
+    const dbUrl = `https://api.airtable.com/v0/${import.meta.env.VITE_BASE_ID}/${import.meta.env.VITE_TABLE_NAME}`;
+    if (!options.hasOwnProperty('headers')) {
+      options.headers = {};
+    }
+    options.headers['Authorization'] = `Bearer ${import.meta.env.VITE_PAT}`;
+    return await fetch(dbUrl, options);
+  }
+
+  async function createNewTodo(newTodo) {
     const payload = {
       records: [
         {
@@ -37,15 +38,47 @@ function App() {
     const options = {
       method: 'POST',
       headers: {
-        Authorization: getTokenHeader(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
     };
 
+    return await dbApiRequest(options);
+  }
+  async function updateExistTodo(editedTodo) {
+    const payload = {
+      records: [
+        {
+          id: editedTodo.id,
+          fields: {
+            title: editedTodo.title,
+            isCompleted: editedTodo.isCompleted,
+          },
+        },
+      ],
+    };
+
+    const options = {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    };
+    return await dbApiRequest(options);
+  }
+
+  async function selectAllTodos() {
+    const options = {
+      method: 'GET',
+    };
+    return await dbApiRequest(options);
+  }
+
+  const addTodo = async (newTodo) => {
     try {
       setIsSaving(true);
-      const resp = await fetch(getDbUrl(), options);
+      const resp = createNewTodo(newTodo);
       if (!resp.ok) {
         throw new Error(resp.status);
       }
@@ -76,30 +109,10 @@ function App() {
 
   const updateTodo = async (editedTodo) => {
     const originalTodo = todoList.find((todo) => todo.id === editedTodo.id);
-    const payload = {
-      records: [
-        {
-          id: editedTodo.id,
-          fields: {
-            title: editedTodo.title,
-            isCompleted: editedTodo.isCompleted,
-          },
-        },
-      ],
-    };
-
-    const options = {
-      method: 'PATCH',
-      headers: {
-        Authorization: getTokenHeader(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    };
 
     try {
       setIsSaving(true);
-      const resp = await fetch(getDbUrl(), options);
+      const resp = await updateExistTodo(editedTodo);
       if (!resp.ok) {
         throw new Error(resp.status);
       }
@@ -138,17 +151,9 @@ function App() {
   useEffect(() => {
     const fetchTodos = async () => {
       setIsLoading(true);
-      const url = getDbUrl();
-      const token = getTokenHeader();
-      const options = {
-        method: 'GET',
-        headers: {
-          Authorization: token,
-        },
-      };
 
       try {
-        const resp = await fetch(url, options);
+        const resp = await selectAllTodos();
         if (!resp.ok) {
           throw new Error(resp.status);
         }
